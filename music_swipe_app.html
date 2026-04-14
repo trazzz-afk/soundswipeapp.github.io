@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SoundSwipe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 10px;
+    background: #0f0f0f;
+  }
+
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1DB954, #1ed760);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .genre-filter {
+    display: flex;
+    gap: 8px;
+    padding: 8px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .genre-filter::-webkit-scrollbar { display: none; }
+
+  .genre-btn {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #333;
+    background: transparent;
+    color: #aaa;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .genre-btn.active {
+    background: #1DB954;
+    border-color: #1DB954;
+    color: #000;
+    font-weight: 600;
+  }
+
+  .card-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 10px 20px;
+  }
+
+  .card {
+    position: absolute;
+    width: calc(100% - 40px);
+    max-width: 380px;
+    border-radius: 24px;
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    transition: box-shadow 0.2s;
+    background: #1a1a1a;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .card:active { cursor: grabbing; }
+
+  .card-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+
+  .card-img-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 80px;
+  }
+
+  .card-info {
+    padding: 16px 18px 14px;
+  }
+
+  .card-info h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-info .artist {
+    font-size: 15px;
+    color: #aaa;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-info .meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #2a2a2a;
+    color: #aaa;
+  }
+
+  .tag.genre { background: #1a2e20; color: #1DB954; }
+
+  .spotify-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: #1DB954;
+    border: none;
+    border-radius: 50px;
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .spotify-btn:active { background: #17a347; }
+  .spotify-btn svg { flex-shrink: 0; }
+
+  .swipe-indicator {
+    position: absolute;
+    top: 30px;
+    padding: 10px 22px;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    opacity: 0;
+    pointer-events: none;
+    border: 3px solid;
+    z-index: 10;
+  }
+  .swipe-indicator.like {
+    left: 30px;
+    color: #1DB954;
+    border-color: #1DB954;
+  }
+  .swipe-indicator.nope {
+    right: 30px;
+    color: #ff4757;
+    border-color: #ff4757;
+  }
+
+  .audio-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px 0;
+  }
+
+  .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #1DB954;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .play-btn svg { pointer-events: none; }
+
+  .progress-wrap {
+    flex: 1;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #1DB954;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  .duration {
+    font-size: 12px;
+    color: #666;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 20px 20px;
+  }
+
+  .action-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    transition: transform 0.15s;
+  }
+  .action-btn:active { transform: scale(0.9); }
+
+  .btn-nope  { background: #2a1a1a; }
+  .btn-super { background: #1a1a2e; width: 48px; height: 48px; font-size: 20px; }
+  .btn-like  { background: #1a2a1a; }
+
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 16px;
+    color: #555;
+    font-size: 15px;
+    text-align: center;
+    padding: 20px;
+  }
+  .empty-state .icon { font-size: 60px; }
+
+  .score-bar {
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 20px 0;
+  }
+
+  .score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .score-num {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .score-num.liked { color: #1DB954; }
+  .score-num.noped { color: #ff4757; }
+  .score-num.supered { color: #3d9ff4; }
+
+  .score-label {
+    font-size: 11px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SoundSwipe</h1>
+  <div style="font-size:13px;color:#555;">Discover music</div>
+</header>
+
+<div class="score-bar">
+  <div class="score-item">
+    <span class="score-num noped" id="nope-count">0</span>
+    <span class="score-label">Skipped</span>
+  </div>
+  <div class="score-item">
+    <span class="score-num supered" id="super-count">0</span>
+    <span class="score-label">Super Like</span>
+  </div>
+  <div class="score-item">
+    <span class="score-num liked" id="like-count">0</span>
+    <span class="score-label">Liked</span>
+  </div>
+</div>
+
+<div class="genre-filter" id="genre-filter">
+  <button class="genre-btn active" data-genre="all">All</button>
+  <button class="genre-btn" data-genre="pop">Pop</button>
+  <button class="genre-btn" data-genre="hiphop">Hip-Hop</button>
+  <button class="genre-btn" data-genre="rock">Rock</button>
+  <button class="genre-btn" data-genre="electronic">Electronic</button>
+  <button class="genre-btn" data-genre="rnb">R&B</button>
+  <button class="genre-btn" data-genre="latin">Latin</button>
+  <button class="genre-btn" data-genre="indie">Indie</button>
+</div>
+
+<div class="card-area" id="card-area">
+  <div class="empty-state" id="empty-state">
+    <div class="icon">🎵</div>
+    <div style="font-size:18px;font-weight:700;color:#fff;">That's all for now!</div>
+    <div>Come back later for more discoveries</div>
+    <button onclick="resetCards()" style="margin-top:12px;padding:12px 32px;background:#1DB954;border:none;border-radius:50px;color:#000;font-weight:700;font-size:15px;cursor:pointer;">Start Over</button>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="action-btn btn-nope" id="btn-nope" onclick="swipeCard('left')" title="Nope">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="#ff4757"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+  </button>
+  <button class="action-btn btn-super" id="btn-super" onclick="swipeCard('super')" title="Super Like">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="#3d9ff4"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+  </button>
+  <button class="action-btn btn-like" id="btn-like" onclick="swipeCard('right')" title="Like">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+  </button>
+</div>
+
+<script>
+const SONGS = [
+  { id: "4iV5W9uYEdYUVa79Axb7Rh", title: "Blinding Lights", artist: "The Weeknd", genre: "pop", emoji: "🌟", year: "2019", bpm: "171 BPM" },
+  { id: "7qiZfU4dY1lWllzX7mPBI3", title: "Shape of You", artist: "Ed Sheeran", genre: "pop", emoji: "💚", year: "2017", bpm: "96 BPM" },
+  { id: "0VjIjW4GlUZAMYd2vXMi3b", title: "Watermelon Sugar", artist: "Harry Styles", genre: "pop", emoji: "🍉", year: "2020", bpm: "95 BPM" },
+  { id: "2Fxmhks0bxGSBdJ92vM42m", title: "God's Plan", artist: "Drake", genre: "hiphop", emoji: "🙏", year: "2018", bpm: "77 BPM" },
+  { id: "57bgtoPSgt236HzfBOd8kj", title: "HUMBLE.", artist: "Kendrick Lamar", genre: "hiphop", emoji: "👑", year: "2017", bpm: "150 BPM" },
+  { id: "0pqnGHJpmpxLKifKRmU6WP", title: "SICKO MODE", artist: "Travis Scott", genre: "hiphop", emoji: "🌵", year: "2018", bpm: "155 BPM" },
+  { id: "6UelLqGlWMcVH1E5c4H7lY", title: "Levitating", artist: "Dua Lipa", genre: "pop", emoji: "✨", year: "2020", bpm: "103 BPM" },
+  { id: "5HCyWlXZPP0y6Gqq8TgA20", title: "As It Was", artist: "Harry Styles", genre: "indie", emoji: "🪐", year: "2022", bpm: "174 BPM" },
+  { id: "3FAJ6O0NOHQV8Mc5Ri6ENp", title: "Smells Like Teen Spirit", artist: "Nirvana", genre: "rock", emoji: "🎸", year: "1991", bpm: "117 BPM" },
+  { id: "7snQQk1zcKl8gZ92AnueZW", title: "Mr. Brightside", artist: "The Killers", genre: "rock", emoji: "🔑", year: "2003", bpm: "148 BPM" },
+  { id: "6b8Be6ljOzmkOmFslEb23P", title: "Bohemian Rhapsody", artist: "Queen", genre: "rock", emoji: "🎭", year: "1975", bpm: "72 BPM" },
+  { id: "7GhIk7Il098yCjg4BQjzvb", title: "Roses", artist: "SAINt JHN", genre: "electronic", emoji: "🌹", year: "2016", bpm: "123 BPM" },
+  { id: "0DiWol3AO6WpXZgdawy1bO", title: "Gecko", artist: "Oliver Heldens", genre: "electronic", emoji: "🦎", year: "2014", bpm: "128 BPM" },
+  { id: "2TI7qyde01ido3fNcLRVDg", title: "Bad Guy", artist: "Billie Eilish", genre: "pop", emoji: "😈", year: "2019", bpm: "135 BPM" },
+  { id: "7LRFa7sHDJxALFvU9nCXMB", title: "Despacito", artist: "Luis Fonsi ft. Daddy Yankee", genre: "latin", emoji: "💃", year: "2017", bpm: "89 BPM" },
+  { id: "3yfqSUWxFvZELEM4PmlwIR", title: "Con Calma", artist: "Daddy Yankee & Snow", genre: "latin", emoji: "🎉", year: "2019", bpm: "100 BPM" },
+  { id: "0nbXyq5TXYPCO7pr3N8S4I", title: "Drivers License", artist: "Olivia Rodrigo", genre: "indie", emoji: "🪪", year: "2021", bpm: "73 BPM" },
+  { id: "78QR3bRjUgxrMEcBMjjSNq", title: "Stay With Me", artist: "Sam Smith", genre: "rnb", emoji: "🕊️", year: "2014", bpm: "84 BPM" },
+  { id: "7iL6o9tox1zgHpAZfEfaP1", title: "Redbone", artist: "Childish Gambino", genre: "rnb", emoji: "🦴", year: "2016", bpm: "96 BPM" },
+  { id: "3ee8Jmje8o58CHK66QrVC2", title: "Peaches", artist: "Justin Bieber ft. Daniel Caesar", genre: "rnb", emoji: "🍑", year: "2021", bpm: "90 BPM" },
+];
+
+let deck = [];
+let currentGenre = "all";
+let likeCount = 0, nopeCount = 0, superCount = 0;
+let isDragging = false, startX = 0, startY = 0, currentX = 0;
+let cardEl = null;
+let progInterval = null;
+let progValue = 0;
+
+function buildDeck(genre) {
+  deck = SONGS.filter(s => genre === "all" || s.genre === genre)
+    .sort(() => Math.random() - 0.5);
+}
+
+function renderCard() {
+  const area = document.getElementById("card-area");
+  const existing = area.querySelector(".card");
+  if (existing) existing.remove();
+  if (deck.length === 0) {
+    document.getElementById("empty-state").style.display = "flex";
+    return;
+  }
+  document.getElementById("empty-state").style.display = "none";
+  const song = deck[deck.length - 1];
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.id = "current-card";
+  card.innerHTML = `
+    <div class="swipe-indicator like" id="ind-like">LIKE</div>
+    <div class="swipe-indicator nope" id="ind-nope">NOPE</div>
+    <div class="card-img-placeholder" style="background:${genreColor(song.genre)}">${song.emoji}</div>
+    <div class="card-info">
+      <h2>${song.title}</h2>
+      <div class="artist">${song.artist}</div>
+      <div class="audio-bar">
+        <button class="play-btn" id="play-btn" onclick="togglePlay(event)">
+          <svg id="play-icon" width="16" height="16" viewBox="0 0 24 24" fill="#000"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="progress-wrap" id="progress-wrap" onclick="scrubProgress(event)">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="duration" id="duration-label">0:30</span>
+      </div>
+      <div class="meta" style="margin-top:10px">
+        <span class="tag genre">${song.genre}</span>
+        <span class="tag">${song.year}</span>
+        <span class="tag">${song.bpm}</span>
+      </div>
+      <a class="spotify-btn" href="https://open.spotify.com/track/${song.id}" target="_blank" onclick="openSpotify(event,'${song.id}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#000"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        Open in Spotify
+      </a>
+    </div>
+  `;
+
+  area.appendChild(card);
+  cardEl = card;
+  stopProgress();
+  setupDrag(card);
+}
+
+function genreColor(g) {
+  const map = {pop:"#1a1a35",hiphop:"#1a2a10",rock:"#2a1010",electronic:"#0a1a2a",rnb:"#2a1020",latin:"#2a1a00",indie:"#1a1a1a"};
+  return map[g] || "#1a1a1a";
+}
+
+function openSpotify(e, trackId) {
+  e.preventDefault();
+  window.open("https://open.spotify.com/track/" + trackId, "_blank");
+}
+
+function togglePlay(e) {
+  e.stopPropagation();
+  if (progInterval) { stopProgress(); return; }
+  startProgress();
+}
+
+function startProgress() {
+  const icon = document.getElementById("play-icon");
+  if (icon) icon.setAttribute("d","M6 19h4V5H6v14zm8-14v14h4V5h-4z");
+  progInterval = setInterval(() => {
+    progValue = Math.min(progValue + (100 / 30 / 10), 100);
+    const fill = document.getElementById("progress-fill");
+    if (fill) fill.style.width = progValue + "%";
+    const lbl = document.getElementById("duration-label");
+    if (lbl) {
+      const rem = Math.max(0, 30 - Math.round(progValue * 0.3));
+      lbl.textContent = "0:" + String(rem).padStart(2,"0");
+    }
+    if (progValue >= 100) stopProgress();
+  }, 100);
+}
+
+function stopProgress() {
+  clearInterval(progInterval);
+  progInterval = null;
+  const icon = document.getElementById("play-icon");
+  if (icon) icon.setAttribute("d","M8 5v14l11-7z");
+}
+
+function scrubProgress(e) {
+  const wrap = e.currentTarget;
+  const rect = wrap.getBoundingClientRect();
+  progValue = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  const fill = document.getElementById("progress-fill");
+  if (fill) fill.style.width = progValue + "%";
+}
+
+function setupDrag(card) {
+  card.addEventListener("mousedown", dragStart);
+  card.addEventListener("touchstart", dragStart, {passive: true});
+  window.addEventListener("mousemove", dragMove);
+  window.addEventListener("touchmove", dragMove, {passive: true});
+  window.addEventListener("mouseup", dragEnd);
+  window.addEventListener("touchend", dragEnd);
+}
+
+function dragStart(e) {
+  isDragging = true;
+  const pt = e.touches ? e.touches[0] : e;
+  startX = pt.clientX;
+  startY = pt.clientY;
+  currentX = 0;
+  cardEl.style.transition = "none";
+}
+
+function dragMove(e) {
+  if (!isDragging) return;
+  const pt = e.touches ? e.touches[0] : e;
+  currentX = pt.clientX - startX;
+  const currentY = pt.clientY - startY;
+  const rotate = currentX * 0.08;
+  cardEl.style.transform = `translate(${currentX}px, ${currentY * 0.3}px) rotate(${rotate}deg)`;
+
+  const likeInd = document.getElementById("ind-like");
+  const nopeInd = document.getElementById("ind-nope");
+  const ratio = Math.min(Math.abs(currentX) / 80, 1);
+  if (currentX > 20) {
+    likeInd.style.opacity = ratio;
+    nopeInd.style.opacity = 0;
+  } else if (currentX < -20) {
+    nopeInd.style.opacity = ratio;
+    likeInd.style.opacity = 0;
+  } else {
+    likeInd.style.opacity = 0;
+    nopeInd.style.opacity = 0;
+  }
+}
+
+function dragEnd() {
+  if (!isDragging) return;
+  isDragging = false;
+  if (currentX > 80) {
+    swipeCard("right");
+  } else if (currentX < -80) {
+    swipeCard("left");
+  } else {
+    cardEl.style.transition = "transform 0.4s cubic-bezier(.175,.885,.32,1.275)";
+    cardEl.style.transform = "";
+    document.getElementById("ind-like").style.opacity = 0;
+    document.getElementById("ind-nope").style.opacity = 0;
+  }
+}
+
+function swipeCard(dir) {
+  stopProgress();
+  if (!cardEl) return;
+  const card = cardEl;
+  card.style.transition = "transform 0.4s ease, opacity 0.4s ease";
+  if (dir === "right") {
+    card.style.transform = "translateX(120vw) rotate(20deg)";
+    likeCount++;
+    document.getElementById("like-count").textContent = likeCount;
+  } else if (dir === "left") {
+    card.style.transform = "translateX(-120vw) rotate(-20deg)";
+    nopeCount++;
+    document.getElementById("nope-count").textContent = nopeCount;
+  } else if (dir === "super") {
+    card.style.transform = "translateY(-120vh)";
+    superCount++;
+    document.getElementById("super-count").textContent = superCount;
+    likeCount++;
+    document.getElementById("like-count").textContent = likeCount;
+  }
+  card.style.opacity = "0";
+  deck.pop();
+  progValue = 0;
+  cardEl = null;
+  setTimeout(renderCard, 420);
+}
+
+function resetCards() {
+  stopProgress();
+  likeCount = 0; nopeCount = 0; superCount = 0;
+  document.getElementById("like-count").textContent = 0;
+  document.getElementById("nope-count").textContent = 0;
+  document.getElementById("super-count").textContent = 0;
+  buildDeck(currentGenre);
+  renderCard();
+}
+
+document.getElementById("genre-filter").addEventListener("click", (e) => {
+  if (!e.target.matches(".genre-btn")) return;
+  document.querySelectorAll(".genre-btn").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  currentGenre = e.target.dataset.genre;
+  stopProgress();
+  progValue = 0;
+  cardEl = null;
+  buildDeck(currentGenre);
+  renderCard();
+});
+
+buildDeck("all");
+renderCard();
+</script>
+</body>
+</html>
